@@ -1,0 +1,27 @@
+name: guardix
+description: A Flutter plugin for device security checks — detects root/jailbreak, emulator/simulator, and developer mode on Android and iOS.
+version: 0.0.1
+homepage: https://github.com/faten-elsaeed/guardix
+
+environment:
+  sdk: ^3.11.5
+  flutter: '>=3.3.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  plugin_platform_interface: ^2.1.8
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  plugin:
+    platforms:
+      android:
+        package: com.guardix.guardix
+        pluginClass: GuardixPlugin
+      ios:
+        pluginClass: GuardixPlugin

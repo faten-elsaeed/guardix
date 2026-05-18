@@ -1,0 +1,17 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+          package="com.guardix.guardix">
+    <queries>
+        <package android:name="com.topjohnwu.magisk"/>
+        <package android:name="eu.chainfire.supersu"/>
+        <package android:name="com.koushikdutta.superuser"/>
+        <package android:name="com.noshufou.android.su"/>
+        <package android:name="com.thirdparty.superuser"/>
+        <package android:name="com.yellowes.su"/>
+        <package android:name="com.zachspong.temprootremovejb"/>
+        <package android:name="com.ramdroid.appquarantine"/>
+        <package android:name="com.devadvance.rootcloak"/>
+        <package android:name="com.devadvance.rootcloakplus"/>
+        <package android:name="de.robv.android.xposed.installer"/>
+        <package android:name="com.saurik.substrate"/>
+    </queries>
+</manifest>
