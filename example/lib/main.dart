@@ -45,17 +45,19 @@ class _SecurityCheckScreenState extends State<SecurityCheckScreen> {
     });
     try {
       final status = await Guardix.getSecurityStatus();
-      if (mounted)
+      if (mounted) {
         setState(() {
           _status = status;
           _isLoading = false;
         });
+      }
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         setState(() {
           _error = e.toString();
           _isLoading = false;
         });
+      }
     }
   }
 
@@ -166,8 +168,6 @@ class _SecurityCheckScreenState extends State<SecurityCheckScreen> {
 
   Widget _buildBanner() {
     final isClean = _status != null && !_status!.isCompromised;
-    final isWarn = _status != null && _status!.isCompromised;
-
     Color bg = _isLoading
         ? Colors.grey.shade100
         : isClean
@@ -199,7 +199,7 @@ class _SecurityCheckScreenState extends State<SecurityCheckScreen> {
       decoration: BoxDecoration(
         color: bg,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: fg.withOpacity(0.25)),
+        border: Border.all(color: fg.withValues(alpha: 0.25)),
       ),
       child: Row(
         children: [
@@ -220,7 +220,10 @@ class _SecurityCheckScreenState extends State<SecurityCheckScreen> {
                 const SizedBox(height: 2),
                 Text(
                   sub,
-                  style: TextStyle(fontSize: 12, color: fg.withOpacity(0.7)),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: fg.withValues(alpha: 0.7),
+                  ),
                 ),
               ],
             ),
@@ -269,7 +272,7 @@ class _SecurityCheckScreenState extends State<SecurityCheckScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.black.withOpacity(0.06)),
+        border: Border.all(color: Colors.black.withValues(alpha: 0.06)),
       ),
       child: Row(
         children: [

@@ -1,5 +1,4 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:guardix/guardix.dart';
 import 'package:guardix/guardix_platform_interface.dart';
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 
