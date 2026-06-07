@@ -74,5 +74,9 @@
         <string>undecimus</string>
         <string>filza</string>
     </array>
+    <key>NSLocationWhenInUseUsageDescription</key>
+    <string>This app checks for mock location as part of device security verification.</string>
+    <key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+    <string>This app checks for mock location as part of device security verification.</string>
 </dict>
 </plist>

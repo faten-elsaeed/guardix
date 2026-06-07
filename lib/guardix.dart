@@ -41,4 +41,28 @@ class Guardix {
   static Future<DeviceSecurityStatus> getSecurityStatus() {
     return GuardixPlatform.instance.getSecurityStatus();
   }
+
+  /// Checks if a mock/fake location is being injected.
+  ///
+  /// [strictMode] `true` (default) — flags device if a known GPS spoofing
+  /// app is installed, even if not currently active. Recommended for
+  /// banking and fintech apps.
+  ///
+  /// [strictMode] `false` — only flags when mock location is actively
+  /// running. Less strict, fewer false positives.
+  ///
+  /// Note: on iOS, [strictMode] has no effect — only active software
+  /// simulation is detectable via Apple's CoreLocation API.
+  ///
+  /// Example:
+  /// ```dart
+  /// // Strict — for banking apps (default)
+  /// final isMock = await Guardix.checkMockLocation();
+  ///
+  /// // Lenient — only flag active spoofing
+  /// final isMock = await Guardix.checkMockLocation(strictMode: false);
+  /// ```
+  static Future<bool> checkMockLocation({bool strictMode = true}) {
+    return GuardixPlatform.instance.checkMockLocation(strictMode: strictMode);
+  }
 }

@@ -10,7 +10,11 @@ import io.flutter.plugin.common.MethodChannel
 import io.flutter.plugin.common.MethodChannel.MethodCallHandler
 import io.flutter.plugin.common.MethodChannel.Result
 
+import android.util.Log
+
 class GuardixPlugin : FlutterPlugin, MethodCallHandler {
+
+    private val tag = "GuardixPlugin"
 
     private lateinit var channel: MethodChannel
     private lateinit var context: Context
@@ -40,15 +44,43 @@ class GuardixPlugin : FlutterPlugin, MethodCallHandler {
     override fun onMethodCall(call: MethodCall, result: Result) {
         when (call.method) {
             "getSecurityStatus" -> {
-                try {
-                    val status = mapOf(
-                        "isDeveloperMode" to isDeveloperModeEnabled(),
-                        "isEmulator" to isEmulator(),
-                        "isRootedOrJailbroken" to isRooted()
-                    )
-                    result.success(status)
-                } catch (e: Exception) {
-                    result.error("SECURITY_CHECK_FAILED", e.message, null)
+                val executor = java.util.concurrent.Executors.newSingleThreadExecutor()
+                executor.execute {
+                    try {
+                        val status = mapOf(
+                            "isDeveloperMode" to isDeveloperModeEnabled(),
+                            "isEmulator" to isEmulator(),
+                            "isRootedOrJailbroken" to isRooted()
+                        )
+                        android.os.Handler(android.os.Looper.getMainLooper()).post {
+                            result.success(status)
+                        }
+                    } catch (e: Exception) {
+                        android.os.Handler(android.os.Looper.getMainLooper()).post {
+                            result.error("SECURITY_CHECK_FAILED", e.message, null)
+                        }
+                    } finally {
+                        executor.shutdown()
+                    }
+                }
+            }
+
+            "isMockLocation" -> {
+                val executor = java.util.concurrent.Executors.newSingleThreadExecutor()
+                executor.execute {
+                    try {
+                        val strictMode = call.argument<Boolean>("strictMode") ?: true
+                        val mockResult = isMockLocation(strictMode = strictMode)
+                        android.os.Handler(android.os.Looper.getMainLooper()).post {
+                            result.success(mockResult)
+                        }
+                    } catch (e: Exception) {
+                        android.os.Handler(android.os.Looper.getMainLooper()).post {
+                            result.error("MOCK_LOCATION_CHECK_FAILED", e.message, null)
+                        }
+                    } finally {
+                        executor.shutdown()
+                    }
                 }
             }
 
@@ -260,5 +292,171 @@ class GuardixPlugin : FlutterPlugin, MethodCallHandler {
     private val suspiciousFridaPatterns = listOf(
         "frida", "gadget", "injector", "libfrida", "frida-agent"
     )
+
+
+    // ──────────────────────────────────────────────
+    // Mock Location Detection
+    // ──────────────────────────────────────────────
+    private fun isMockLocation(strictMode: Boolean = true): Boolean {
+        val isActiveMock = checkMockLocationApi31()
+                || checkMockLocationApi23To30()
+                || checkMockLocationPreApi23()
+        return if (strictMode) {
+            Log.d(tag, "strictMode enabled")
+            isActiveMock || checkMockLocationApps()
+        } else {
+            Log.d(tag, "strictMode disabled")
+            isActiveMock
+        }
+
+    }
+
+    // Android 12+ (API 31+) — official isMock flag on Location object
+
+    private fun checkMockLocationApi31(): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return false
+        return try {
+            val lm = context.getSystemService(Context.LOCATION_SERVICE)
+                    as android.location.LocationManager
+
+            val providers = lm.getProviders(true)
+            if (providers.isEmpty()) return false
+
+            val provider = when {
+                providers.contains(android.location.LocationManager.GPS_PROVIDER) ->
+                    android.location.LocationManager.GPS_PROVIDER
+
+                providers.contains(android.location.LocationManager.NETWORK_PROVIDER) ->
+                    android.location.LocationManager.NETWORK_PROVIDER
+
+                else -> providers.first()
+            }
+
+            // First — check cached location but only trust it if fresh (< 30 seconds)
+            val cached = lm.getLastKnownLocation(provider)
+            if (cached != null) {
+                val age = System.currentTimeMillis() - cached.time
+                if (age < 30_000) {
+                    // Fresh cache — trust the isMock flag directly
+                    return cached.isMock
+                }
+                // Stale cache — if isMock is false we can trust it
+                // Only if isMock is true do we need to verify with a fresh request
+                if (!cached.isMock) return false
+            }
+
+            // Cache is stale AND was marked mock — verify with fresh location
+            val latch = java.util.concurrent.CountDownLatch(1)
+            var isMock = false
+            val cancellationSignal = android.os.CancellationSignal()
+            val executor = java.util.concurrent.Executors.newSingleThreadExecutor()
+
+            lm.getCurrentLocation(provider, cancellationSignal, executor) { location ->
+                if (location?.isMock == true) isMock = true
+                latch.countDown()
+            }
+
+            // Reduced timeout to 3 seconds — only reaches here when cache was stale+mock
+            val completed = latch.await(3, java.util.concurrent.TimeUnit.SECONDS)
+            executor.shutdown()
+            if (!completed) cancellationSignal.cancel()
+
+            isMock
+        } catch (e: SecurityException) {
+            false
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+
+//    private fun checkMockLocationApi31(): Boolean {
+//        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return false
+//        return try {
+//            val lm = context.getSystemService(Context.LOCATION_SERVICE) as android.location.LocationManager
+//            val providers = lm.getProviders(true)
+//            for (provider in providers) {
+//                // getLastKnownLocation can be null — use requestSingleUpdate fallback
+//                val location = lm.getLastKnownLocation(provider)
+//
+//                Log.d(tag, "location?.isMock")
+//                Log.d(tag, location?.isMock.toString()) //print true
+//                if (location?.isMock == true) return true
+//            }
+//            false
+//        } catch (e: SecurityException) {
+//            // Location permission not granted — fall through to other checks
+//            false
+//        } catch (e: Exception) {
+//            false
+//        }
+//    }
+
+    // Android 6.0 to 11 (API 23–30) — AppOps check
+    private fun checkMockLocationApi23To30(): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M ||
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+        ) return false
+        return try {
+            val appOps = context.getSystemService(Context.APP_OPS_SERVICE)
+                    as android.app.AppOpsManager
+            appOps.checkOp(
+                android.app.AppOpsManager.OPSTR_MOCK_LOCATION,
+                android.os.Process.myUid(),
+                context.packageName
+            ) == android.app.AppOpsManager.MODE_ALLOWED
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    // Pre Android 6.0 (below API 23) — Settings.Secure flag
+    private fun checkMockLocationPreApi23(): Boolean {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) return false
+        return try {
+            val setting = android.provider.Settings.Secure.getString(
+                context.contentResolver,
+                android.provider.Settings.Secure.ALLOW_MOCK_LOCATION
+            )
+            setting != null && setting != "0"
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    // Check for known mock location / GPS spoofing apps — works even without location permission
+    private fun checkMockLocationApps(): Boolean {
+        val mockApps = arrayOf(
+            "com.lexa.fakegps",
+            "com.incorporateapps.fakegps.fre",
+            "com.fakegps.mock",
+            "com.blogspot.newapphorizons.fakegps",
+            "com.hola.fakegps",
+            "com.gsmartstudio.fakegps",
+            "com.serenegiant.fakegps",
+            "ru.gavrikov.mocklocations",
+            "com.locationchanger",
+            "com.location.changer",
+            "com.fly.gps",
+            "com.rosteam.gpsemulator",
+            "com.gps.fake",
+            "com.lexa.fakegpspro",
+            "com.byterev.teleport"
+        )
+        val pm = context.packageManager
+        return mockApps.any { pkg ->
+            try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    pm.getPackageInfo(pkg, PackageManager.PackageInfoFlags.of(0))
+                } else {
+                    @Suppress("DEPRECATION")
+                    pm.getPackageInfo(pkg, PackageManager.GET_ACTIVITIES)
+                }
+                true
+            } catch (e: Exception) {
+                false
+            }
+        }
+    }
 
 }

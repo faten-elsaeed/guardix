@@ -1,6 +1,6 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-          package="com.guardix.guardix">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <queries>
+        <!-- Root detection -->
         <package android:name="com.topjohnwu.magisk"/>
         <package android:name="eu.chainfire.supersu"/>
         <package android:name="com.koushikdutta.superuser"/>
@@ -13,5 +13,22 @@
         <package android:name="com.devadvance.rootcloakplus"/>
         <package android:name="de.robv.android.xposed.installer"/>
         <package android:name="com.saurik.substrate"/>
+        <!-- Mock location detection -->
+        <package android:name="com.lexa.fakegps"/>
+        <package android:name="com.incorporateapps.fakegps.fre"/>
+        <package android:name="com.fakegps.mock"/>
+        <package android:name="com.blogspot.newapphorizons.fakegps"/>
+        <package android:name="com.hola.fakegps"/>
+        <package android:name="com.gsmartstudio.fakegps"/>
+        <package android:name="com.serenegiant.fakegps"/>
+        <package android:name="ru.gavrikov.mocklocations"/>
+        <package android:name="com.locationchanger"/>
+        <package android:name="com.location.changer"/>
+        <package android:name="com.fly.gps"/>
+        <package android:name="com.rosteam.gpsemulator"/>
+        <package android:name="com.gps.fake"/>
+        <package android:name="com.lexa.fakegpspro"/>
+        <package android:name="com.byterev.teleport"/>
     </queries>
+
 </manifest>

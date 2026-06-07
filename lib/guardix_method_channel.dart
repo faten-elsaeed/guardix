@@ -24,4 +24,13 @@ class MethodChannelGuardix extends GuardixPlatform {
       isRootedOrJailbroken: result['isRootedOrJailbroken'] as bool? ?? false,
     );
   }
+
+  /// Checks mock location status with optional strict mode.
+  @override
+  Future<bool> checkMockLocation({bool strictMode = true}) async {
+    final bool result = await _channel.invokeMethod('isMockLocation', {
+      'strictMode': strictMode,
+    });
+    return result;
+  }
 }

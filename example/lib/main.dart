@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:guardix/guardix.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 void main() => runApp(const GuardixExampleApp());
 
@@ -29,16 +31,24 @@ class SecurityCheckScreen extends StatefulWidget {
 
 class _SecurityCheckScreenState extends State<SecurityCheckScreen> {
   DeviceSecurityStatus? _status;
+  bool? _isMockLocation;
+
   bool _isLoading = true;
   String? _error;
+  bool _locationDenied = false;
 
   @override
   void initState() {
     super.initState();
-    _runChecks();
+    _runAllChecks();
   }
 
-  Future<void> _runChecks() async {
+  Future<void> _runAllChecks() async {
+    await _runSecurityChecks();
+    await _runMockLocationCheck();
+  }
+
+  Future<void> _runSecurityChecks() async {
     setState(() {
       _isLoading = true;
       _error = null;
@@ -48,6 +58,51 @@ class _SecurityCheckScreenState extends State<SecurityCheckScreen> {
       if (mounted) {
         setState(() {
           _status = status;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = e.toString();
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _runMockLocationCheck() async {
+    setState(() {
+      _isLoading = true;
+      // _locationDenied = false;
+    });
+    LocationPermission permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+    }
+    if (permission == LocationPermission.deniedForever) {
+      setState(() => _locationDenied = true);
+    }
+
+    // Actually fetch location
+    try {
+      await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+          timeLimit: Duration(seconds: 5),
+        ),
+      );
+    } catch (e) {
+      // Location fetch failed — still proceed with security check
+      // isMockLocation may return false but other checks still run
+    }
+
+    // Now run mock check
+    try {
+      final isMock = await Guardix.checkMockLocation(strictMode: false);
+      if (mounted) {
+        setState(() {
+          _isMockLocation = isMock;
           _isLoading = false;
         });
       }
@@ -106,7 +161,7 @@ class _SecurityCheckScreenState extends State<SecurityCheckScreen> {
         ),
       ),
       body: RefreshIndicator(
-        onRefresh: _runChecks,
+        onRefresh: _runAllChecks,
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
@@ -142,9 +197,16 @@ class _SecurityCheckScreenState extends State<SecurityCheckScreen> {
               description: 'System integrity',
               value: _status?.isRootedOrJailbroken,
             ),
+            const SizedBox(height: 8),
+            _buildCheckCard(
+              icon: Icons.location_on_outlined,
+              label: 'Mock location',
+              description: 'GPS location integrity',
+              value: _isMockLocation,
+            ),
             const SizedBox(height: 16),
             OutlinedButton.icon(
-              onPressed: _isLoading ? null : _runChecks,
+              onPressed: _isLoading ? null : _runAllChecks,
               icon: _isLoading
                   ? const SizedBox(
                       width: 16,
@@ -167,7 +229,67 @@ class _SecurityCheckScreenState extends State<SecurityCheckScreen> {
   }
 
   Widget _buildBanner() {
-    final isClean = _status != null && !_status!.isCompromised;
+    // Location permanently denied — special state
+    if (_locationDenied) {
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFFF7ED),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0xFFFED7AA)),
+        ),
+        child: Row(
+          children: [
+            const Icon(
+              Icons.location_off_outlined,
+              color: Color(0xFFEA580C),
+              size: 32,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Location permission required',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w500,
+                      color: Color(0xFFEA580C),
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  const Text(
+                    'Enable in Settings to check mock location',
+                    style: TextStyle(fontSize: 12, color: Color(0xFFC2410C)),
+                  ),
+                  const SizedBox(height: 8),
+                  GestureDetector(
+                    onTap: () => openAppSettings(),
+                    child: const Text(
+                      'Open Settings →',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: Color(0xFFEA580C),
+                        decoration: TextDecoration.underline,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final isClean =
+        _status != null &&
+        !(_status!.isDeveloperMode ||
+            _status!.isEmulator ||
+            _status!.isRootedOrJailbroken) &&
+        _isMockLocation == false;
     Color bg = _isLoading
         ? Colors.grey.shade100
         : isClean

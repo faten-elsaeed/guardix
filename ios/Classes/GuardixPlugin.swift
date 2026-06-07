@@ -2,6 +2,7 @@ import Flutter
 import UIKit
 import MachO
 import Darwin
+import CoreLocation
 
 public class GuardixPlugin: NSObject, FlutterPlugin {
 
@@ -25,6 +26,10 @@ public class GuardixPlugin: NSObject, FlutterPlugin {
                 "isRootedOrJailbroken": isJailbroken()
             ]
             result(status)
+        case "isMockLocation":
+            let args = call.arguments as? [String: Any]
+            let strictMode = args?["strictMode"] as? Bool ?? true
+            result(isMockLocation(strictMode: strictMode))
         default:
             result(FlutterMethodNotImplemented)
         }
@@ -308,4 +313,19 @@ public class GuardixPlugin: NSObject, FlutterPlugin {
         }
         return false
     }
+    // MARK: - Mock Location Detection
+
+   // MARK: - Mock Location Detection
+
+   private func isMockLocation(strictMode: Bool = true) -> Bool {
+       if #available(iOS 15.0, *) {
+           let locationManager = CLLocationManager()
+           if let sourceInfo = locationManager.location?.sourceInformation {
+               if sourceInfo.isSimulatedBySoftware { return true }
+           }
+       }
+       // iOS has no app-level spoofing app detection API
+       // strictMode has no additional effect on iOS
+       return false
+   }
 }

@@ -22,12 +22,6 @@ class DeviceSecurityStatus {
     required this.isRootedOrJailbroken,
   });
 
-  /// Returns `true` if any security concern is detected.
-  ///
-  /// Equivalent to checking if any of [isDeveloperMode],
-  /// [isEmulator], or [isRootedOrJailbroken] is `true`.
-  bool get isCompromised =>
-      isDeveloperMode || isEmulator || isRootedOrJailbroken;
 
   @override
   String toString() =>
@@ -61,4 +55,16 @@ abstract class GuardixPlatform extends PlatformInterface {
   ///
   /// Throws a [PlatformException] if the check fails.
   Future<DeviceSecurityStatus> getSecurityStatus();
+
+  /// Checks if a mock/fake location is being injected.
+  ///
+  /// If [strictMode] is `true` (default), also returns `true` if any
+  /// known GPS spoofing app is installed, even if not currently active.
+  ///
+  /// If [strictMode] is `false`, only returns `true` when mock location
+  /// is actively being used.
+  ///
+  /// Note: on iOS, [strictMode] has no effect — only active simulation
+  /// is detectable via Apple's CoreLocation API.
+  Future<bool> checkMockLocation({bool strictMode = true});
 }

@@ -9,6 +9,11 @@ class MockGuardixPlatform
   Future<DeviceSecurityStatus> getSecurityStatus() {
     throw UnimplementedError();
   }
+
+  @override
+  Future<bool> checkMockLocation({bool strictMode = true}) {
+    throw UnimplementedError();
+  }
 }
 
 void main() {}
