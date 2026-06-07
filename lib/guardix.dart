@@ -19,6 +19,8 @@ export 'guardix_platform_interface.dart' show DeviceSecurityStatus;
 ///
 /// Use [getSecurityStatus] to check the security state of the device.
 class Guardix {
+  Guardix._();
+
   /// Returns the current [DeviceSecurityStatus] of the device.
   ///
   /// Queries the native platform for three security checks:

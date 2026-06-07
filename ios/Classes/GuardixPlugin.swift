@@ -42,7 +42,7 @@ public class GuardixPlugin: NSObject, FlutterPlugin {
             }
         }
         return isDebuggerAttached()
-            || isBeingInstrumented()
+            || isFridaDetected()
             || hasSuspiciousEnvironment()
             || hasInjectedCode()
     }
@@ -55,7 +55,7 @@ public class GuardixPlugin: NSObject, FlutterPlugin {
         return (info.kp_proc.p_flag & P_TRACED) != 0
     }
 
-    private func isBeingInstrumented() -> Bool {
+    private func isFridaDetected() -> Bool {
         if isFridaPortOpen() { return true }
         if isFridaLibraryLoaded() { return true }
         return false
@@ -63,15 +63,20 @@ public class GuardixPlugin: NSObject, FlutterPlugin {
 
    private func isFridaPortOpen() -> Bool {
        let ports: [UInt16] = [27042, 27043, 4444]
-
-       var results = [Bool](repeating: false, count: ports.count)
        let group = DispatchGroup()
        let queue = DispatchQueue.global(qos: .userInitiated)
+       let lock = NSLock()
+       var detected = false
 
-       for (index, port) in ports.enumerated() {
+       for port in ports {
            group.enter()
            queue.async {
+
                defer { group.leave() }
+                  lock.lock()
+               let alreadyFound = detected
+               lock.unlock()
+               guard !alreadyFound else { return }
 
                var addr = sockaddr_in()
                addr.sin_family = sa_family_t(AF_INET)
@@ -87,20 +92,21 @@ public class GuardixPlugin: NSObject, FlutterPlugin {
                           socklen_t(MemoryLayout<timeval>.size))
                setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, &timeout,
                           socklen_t(MemoryLayout<timeval>.size))
-
                let connectResult = withUnsafePointer(to: &addr) {
                    $0.withMemoryRebound(to: sockaddr.self, capacity: 1) {
                        connect(sock, $0, socklen_t(MemoryLayout<sockaddr_in>.size))
                    }
                }
                if connectResult == 0 {
-                   results[index] = true
+                   lock.lock()
+                   detected = true
+                   lock.unlock()
                }
            }
        }
 
        group.wait()
-       return results.contains(true)
+       return detected
    }
 
     private func isFridaLibraryLoaded() -> Bool {
@@ -109,7 +115,8 @@ public class GuardixPlugin: NSObject, FlutterPlugin {
             "cynject", "libcycript",
             "SSLKillSwitch", "SSLKillSwitch2",
             "A-Bypass", "shadow",
-            "objection", "needle"
+            "objection", "needle",
+            "zygisk", "shamiko"
         ]
         let count = _dyld_image_count()
         for i in 0..<count {
@@ -186,6 +193,7 @@ public class GuardixPlugin: NSObject, FlutterPlugin {
             || checkSandboxViolation()
             || checkSymlinks()
             || checkDylibs()
+            || isFridaDetected()
         #endif
     }
 
@@ -284,9 +292,11 @@ public class GuardixPlugin: NSObject, FlutterPlugin {
 
     private func checkDylibs() -> Bool {
         let suspiciousLibs = [
-            "SubstrateLoader", "SSLKillSwitch",
-            "MobileSubstrate", "TweakInject",
-            "cycript", "frida", "libcycript"
+            "SubstrateLoader",
+            "MobileSubstrate",
+            "TweakInject",
+            "cycript",
+            "libcycript"
         ]
         let count = _dyld_image_count()
         for i in 0..<count {

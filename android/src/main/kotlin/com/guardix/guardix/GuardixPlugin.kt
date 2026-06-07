@@ -67,9 +67,7 @@ class GuardixPlugin : FlutterPlugin, MethodCallHandler {
     private fun isDeveloperOptionsEnabled(): Boolean {
         return try {
             Settings.Global.getInt(
-                context.contentResolver,
-                Settings.Global.DEVELOPMENT_SETTINGS_ENABLED,
-                0
+                context.contentResolver, Settings.Global.DEVELOPMENT_SETTINGS_ENABLED, 0
             ) != 0
         } catch (e: Exception) {
             false
@@ -79,9 +77,7 @@ class GuardixPlugin : FlutterPlugin, MethodCallHandler {
     private fun isUsbDebuggingEnabled(): Boolean {
         return try {
             Settings.Global.getInt(
-                context.contentResolver,
-                Settings.Global.ADB_ENABLED,
-                0
+                context.contentResolver, Settings.Global.ADB_ENABLED, 0
             ) != 0
         } catch (e: Exception) {
             false
@@ -93,31 +89,36 @@ class GuardixPlugin : FlutterPlugin, MethodCallHandler {
     // ──────────────────────────────────────────────
 
     private fun isEmulator(): Boolean {
-        return (Build.FINGERPRINT.startsWith("generic")
-                || Build.FINGERPRINT.startsWith("unknown")
-                || Build.MODEL.contains("google_sdk", ignoreCase = true)
-                || Build.MODEL.contains("Emulator", ignoreCase = true)
-                || Build.MODEL.contains("Android SDK built for x86", ignoreCase = true)
-                || Build.MANUFACTURER.contains("Genymotion", ignoreCase = true)
-                || Build.BRAND.startsWith("generic") && Build.DEVICE.startsWith("generic")
-                || Build.PRODUCT.contains("sdk", ignoreCase = true)
-                || Build.PRODUCT.contains("emulator", ignoreCase = true)
-                || Build.HARDWARE.contains("goldfish", ignoreCase = true)
-                || Build.HARDWARE.contains("ranchu", ignoreCase = true)
-                || Build.BOARD.lowercase().contains("nox")
-                || Build.BOOTLOADER.lowercase().contains("nox")
-                || Build.HARDWARE.lowercase() == "vbox86"
-                || Build.PRODUCT.lowercase() == "vbox86p"
-                || Build.DEVICE.lowercase().contains("vbox")
-                || Build.FINGERPRINT.lowercase().contains("vbox"))
+        return (Build.FINGERPRINT.startsWith("generic") || Build.FINGERPRINT.startsWith("unknown") || Build.MODEL.contains(
+            "google_sdk",
+            ignoreCase = true
+        ) || Build.MODEL.contains("Emulator", ignoreCase = true) || Build.MODEL.contains(
+            "Android SDK built for x86",
+            ignoreCase = true
+        ) || Build.MANUFACTURER.contains(
+            "Genymotion",
+            ignoreCase = true
+        ) || Build.BRAND.startsWith("generic") && Build.DEVICE.startsWith("generic") || Build.PRODUCT.contains(
+            "sdk",
+            ignoreCase = true
+        ) || Build.PRODUCT.contains("emulator", ignoreCase = true) || Build.HARDWARE.contains(
+            "goldfish",
+            ignoreCase = true
+        ) || Build.HARDWARE.contains("ranchu", ignoreCase = true) || Build.BOARD.lowercase()
+            .contains("nox") || Build.BOOTLOADER.lowercase()
+            .contains("nox") || Build.HARDWARE.lowercase() == "vbox86" || Build.PRODUCT.lowercase() == "vbox86p" || Build.DEVICE.lowercase()
+            .contains("vbox") || Build.FINGERPRINT.lowercase().contains("vbox"))
     }
 
     // ──────────────────────────────────────────────
     // Root Detection
     // ──────────────────────────────────────────────
-
     private fun isRooted(): Boolean {
-        return checkSuBinary() || checkRootApps() || checkSystemWritable()
+        return checkSuBinary()
+                || checkRootApps()
+                || checkSystemWritable()
+                || checkFrida()
+                || checkZygiskAndShamiko()
     }
 
     private fun checkSuBinary(): Boolean {
@@ -172,8 +173,7 @@ class GuardixPlugin : FlutterPlugin, MethodCallHandler {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                     pm.getPackageInfo(pkg, PackageManager.PackageInfoFlags.of(0))
                 } else {
-                    @Suppress("DEPRECATION")
-                    pm.getPackageInfo(pkg, PackageManager.GET_ACTIVITIES)
+                    @Suppress("DEPRECATION") pm.getPackageInfo(pkg, PackageManager.GET_ACTIVITIES)
                 }
                 true
             } catch (e: Exception) {
@@ -198,4 +198,67 @@ class GuardixPlugin : FlutterPlugin, MethodCallHandler {
             false
         }
     }
+
+    private fun isFridaPortOpen(): Boolean {
+        val ports = intArrayOf(27042, 27043, 4444)
+        for (port in ports) {
+            try {
+                val socket = java.net.Socket()
+                socket.connect(
+                    java.net.InetSocketAddress("127.0.0.1", port), 100
+                )
+                socket.close()
+                return true
+            } catch (e: Exception) {
+                // port not open — continue
+            }
+        }
+        return false
+    }
+
+    private fun isFridaLibraryLoaded(): Boolean {
+        return checkMapsFile().first
+    }
+
+    private fun checkFrida(): Boolean {
+        return isFridaPortOpen() || isFridaLibraryLoaded()
+    }
+
+
+    private fun checkZygiskAndShamiko(): Boolean {
+        val paths = arrayOf(
+            "/data/adb/modules/shamiko",
+            "/data/adb/modules/zygisksu",
+            "/data/adb/modules/.zygisk",
+            "/data/misc/adb/shamiko"
+        )
+        for (path in paths) {
+            try {
+                if (java.io.File(path).exists()) return true
+            } catch (e: Exception) {
+                continue
+            }
+        }
+        val (_, hasZygisk, hasShamiko) = checkMapsFile()
+        return hasZygisk || hasShamiko
+    }
+
+
+    private fun checkMapsFile(): Triple<Boolean, Boolean, Boolean> {
+        return try {
+            val maps = java.io.File("/proc/self/maps").readText()
+            Triple(
+                suspiciousFridaPatterns.any { maps.contains(it, ignoreCase = true) },
+                maps.contains("zygisk", ignoreCase = true),
+                maps.contains("shamiko", ignoreCase = true)
+            )
+        } catch (e: Exception) {
+            Triple(false, false, false)
+        }
+    }
+
+    private val suspiciousFridaPatterns = listOf(
+        "frida", "gadget", "injector", "libfrida", "frida-agent"
+    )
+
 }
