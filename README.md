@@ -120,15 +120,10 @@ only when your app needs location integrity verification.
 // Strict mode (default) — flags device if a known GPS spoofing app
 // is installed, even if not currently active.
 // Recommended for banking and fintech apps.
-final isMock = await
-Guardix.checkMockLocation
-();
+final isMock = await Guardix.checkMockLocation();
 
 // Lenient mode — only flags when mock location is actively running.
-final isMock = await
-Guardix.checkMockLocation
-(
-strictMode: false);
+final isMock = await Guardix.checkMockLocation(strictMode: false);
 
 if (isMock) {
 // block the transaction / delivery / ride
@@ -270,9 +265,6 @@ already obtained a location for its own business logic.
 
 ## Important notes
 
-- Detection can be bypassed by sophisticated tools such as Magisk with DenyList
-  on Android and rootless jailbreaks on iOS. No purely user-space solution
-  is bypass-proof.
 - `isDeveloperMode` and `isEmulator` return `true` during development and on
   simulators — factor this into your logic during testing.
 - The binary encryption check (`hasInjectedCode`) is skipped in debug builds
