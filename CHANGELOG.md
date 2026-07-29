@@ -1,5 +1,7 @@
-## 0.2.0
+## 0.2.1
+* Fixed a false-positive developer mode detection on Vivo devices where a stale ADB_ENABLED flag caused isDeveloperModeEnabled() to return true even when Developer Options was off.
 
+## 0.2.0
 * Added mock/fake location detection as a separate method `Guardix.checkMockLocation()`
 * `checkMockLocation()` supports `strictMode` option
     * `strictMode: true` (default) — also flags devices with known GPS spoofing apps installed, even if not currently active. Recommended for banking and fintech apps

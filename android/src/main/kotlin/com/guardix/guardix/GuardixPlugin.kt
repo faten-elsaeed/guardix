@@ -93,7 +93,19 @@ class GuardixPlugin : FlutterPlugin, MethodCallHandler {
     // ──────────────────────────────────────────────
 
     private fun isDeveloperModeEnabled(): Boolean {
-        return isDeveloperOptionsEnabled() || isUsbDebuggingEnabled()
+        val devOptionsEnabled = isDeveloperOptionsEnabled()
+
+        // Vivo (and other BBK-based ROMs) can leave ADB_ENABLED stuck at 1
+        // even after Developer Options is turned off, so don't OR it in blindly.
+        return if (isVivoDevice()) {
+            devOptionsEnabled
+        } else {
+            devOptionsEnabled || isUsbDebuggingEnabled()
+        }
+    }
+
+    private fun isVivoDevice(): Boolean {
+        return Build.MANUFACTURER.equals("vivo", ignoreCase = true) || Build.BRAND.equals("vivo", ignoreCase = true)
     }
 
     private fun isDeveloperOptionsEnabled(): Boolean {
@@ -122,20 +134,15 @@ class GuardixPlugin : FlutterPlugin, MethodCallHandler {
 
     private fun isEmulator(): Boolean {
         return (Build.FINGERPRINT.startsWith("generic") || Build.FINGERPRINT.startsWith("unknown") || Build.MODEL.contains(
-            "google_sdk",
-            ignoreCase = true
+            "google_sdk", ignoreCase = true
         ) || Build.MODEL.contains("Emulator", ignoreCase = true) || Build.MODEL.contains(
-            "Android SDK built for x86",
-            ignoreCase = true
+            "Android SDK built for x86", ignoreCase = true
         ) || Build.MANUFACTURER.contains(
-            "Genymotion",
-            ignoreCase = true
+            "Genymotion", ignoreCase = true
         ) || Build.BRAND.startsWith("generic") && Build.DEVICE.startsWith("generic") || Build.PRODUCT.contains(
-            "sdk",
-            ignoreCase = true
+            "sdk", ignoreCase = true
         ) || Build.PRODUCT.contains("emulator", ignoreCase = true) || Build.HARDWARE.contains(
-            "goldfish",
-            ignoreCase = true
+            "goldfish", ignoreCase = true
         ) || Build.HARDWARE.contains("ranchu", ignoreCase = true) || Build.BOARD.lowercase()
             .contains("nox") || Build.BOOTLOADER.lowercase()
             .contains("nox") || Build.HARDWARE.lowercase() == "vbox86" || Build.PRODUCT.lowercase() == "vbox86p" || Build.DEVICE.lowercase()
@@ -146,11 +153,7 @@ class GuardixPlugin : FlutterPlugin, MethodCallHandler {
     // Root Detection
     // ──────────────────────────────────────────────
     private fun isRooted(): Boolean {
-        return checkSuBinary()
-                || checkRootApps()
-                || checkSystemWritable()
-                || checkFrida()
-                || checkZygiskAndShamiko()
+        return checkSuBinary() || checkRootApps() || checkSystemWritable() || checkFrida() || checkZygiskAndShamiko()
     }
 
     private fun checkSuBinary(): Boolean {
@@ -298,9 +301,7 @@ class GuardixPlugin : FlutterPlugin, MethodCallHandler {
     // Mock Location Detection
     // ──────────────────────────────────────────────
     private fun isMockLocation(strictMode: Boolean = true): Boolean {
-        val isActiveMock = checkMockLocationApi31()
-                || checkMockLocationApi23To30()
-                || checkMockLocationPreApi23()
+        val isActiveMock = checkMockLocationApi31() || checkMockLocationApi23To30() || checkMockLocationPreApi23()
         return if (strictMode) {
             Log.d(tag, "strictMode enabled")
             isActiveMock || checkMockLocationApps()
@@ -316,18 +317,15 @@ class GuardixPlugin : FlutterPlugin, MethodCallHandler {
     private fun checkMockLocationApi31(): Boolean {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return false
         return try {
-            val lm = context.getSystemService(Context.LOCATION_SERVICE)
-                    as android.location.LocationManager
+            val lm = context.getSystemService(Context.LOCATION_SERVICE) as android.location.LocationManager
 
             val providers = lm.getProviders(true)
             if (providers.isEmpty()) return false
 
             val provider = when {
-                providers.contains(android.location.LocationManager.GPS_PROVIDER) ->
-                    android.location.LocationManager.GPS_PROVIDER
+                providers.contains(android.location.LocationManager.GPS_PROVIDER) -> android.location.LocationManager.GPS_PROVIDER
 
-                providers.contains(android.location.LocationManager.NETWORK_PROVIDER) ->
-                    android.location.LocationManager.NETWORK_PROVIDER
+                providers.contains(android.location.LocationManager.NETWORK_PROVIDER) -> android.location.LocationManager.NETWORK_PROVIDER
 
                 else -> providers.first()
             }
@@ -394,16 +392,11 @@ class GuardixPlugin : FlutterPlugin, MethodCallHandler {
 
     // Android 6.0 to 11 (API 23–30) — AppOps check
     private fun checkMockLocationApi23To30(): Boolean {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M ||
-            Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
-        ) return false
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M || Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) return false
         return try {
-            val appOps = context.getSystemService(Context.APP_OPS_SERVICE)
-                    as android.app.AppOpsManager
+            val appOps = context.getSystemService(Context.APP_OPS_SERVICE) as android.app.AppOpsManager
             appOps.checkOp(
-                android.app.AppOpsManager.OPSTR_MOCK_LOCATION,
-                android.os.Process.myUid(),
-                context.packageName
+                android.app.AppOpsManager.OPSTR_MOCK_LOCATION, android.os.Process.myUid(), context.packageName
             ) == android.app.AppOpsManager.MODE_ALLOWED
         } catch (e: Exception) {
             false
@@ -415,8 +408,7 @@ class GuardixPlugin : FlutterPlugin, MethodCallHandler {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) return false
         return try {
             val setting = android.provider.Settings.Secure.getString(
-                context.contentResolver,
-                android.provider.Settings.Secure.ALLOW_MOCK_LOCATION
+                context.contentResolver, android.provider.Settings.Secure.ALLOW_MOCK_LOCATION
             )
             setting != null && setting != "0"
         } catch (e: Exception) {
@@ -449,8 +441,7 @@ class GuardixPlugin : FlutterPlugin, MethodCallHandler {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                     pm.getPackageInfo(pkg, PackageManager.PackageInfoFlags.of(0))
                 } else {
-                    @Suppress("DEPRECATION")
-                    pm.getPackageInfo(pkg, PackageManager.GET_ACTIVITIES)
+                    @Suppress("DEPRECATION") pm.getPackageInfo(pkg, PackageManager.GET_ACTIVITIES)
                 }
                 true
             } catch (e: Exception) {
