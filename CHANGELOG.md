@@ -1,3 +1,9 @@
+## 0.2.2
+
+* Fix iOS Swift Package Manager integration: `Package.swift` declared `path: "Classes"`, which doesn't exist inside the package folder, causing
+  `invalid custom path 'Classes' for target 'guardix'` when resolving dependencies.
+
+
 ## 0.2.1
 * Fixed a false-positive developer mode detection on Vivo devices where a stale ADB_ENABLED flag caused isDeveloperModeEnabled() to return true even when Developer Options was off.
 

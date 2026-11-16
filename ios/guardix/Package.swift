@@ -12,8 +12,7 @@ let package = Package(
     targets: [
         .target(
             name: "guardix",
-            dependencies: [],
-            path: "Classes"
+            dependencies: []
         )
     ]
 )

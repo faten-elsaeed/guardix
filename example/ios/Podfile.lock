@@ -35,13 +35,13 @@ EXTERNAL SOURCES:
     :path: ".symlinks/plugins/permission_handler_apple/ios"
 
 SPEC CHECKSUMS:
-  Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467
+  Flutter: 71a624a5bc0c04062bf19101d501e466baf2fb47
   geolocator_apple: 66b711889fd333205763b83c9dcf0a57a28c7afd
-  guardix: 38f0bd64f054a5f31a1182027f6341a0bde12888
+  guardix: 223ff0c69f1569a56e7f9c1fec074cdd0cefacc4
   integration_test: 252f60fa39af5e17c3aa9899d35d908a0721b573
   package_info_plus: c0502532a26c7662a62a356cebe2692ec5fe4ec4
   permission_handler_apple: ee2fe0fd04551b304eb002714ff067c371c822ed
 
-PODFILE CHECKSUM: 3c63482e143d1b91d2d2560aee9fb04ecc74ac7e
+PODFILE CHECKSUM: 3ba3a73b1b12adcf321a227a745625fe0888cc82
 
 COCOAPODS: 1.16.2
