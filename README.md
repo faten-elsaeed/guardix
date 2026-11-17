@@ -24,9 +24,8 @@ Detects four categories of security concerns:
 
 Add to your `pubspec.yaml`:
 
-```yaml
-dependencies:
-  guardix: ^0.2.2
+```bash
+flutter pub add guardix
 ```
 
 ### Android setup

@@ -1,3 +1,7 @@
+## 0.2.3
+
+* Update README.
+
 ## 0.2.2
 
 * Fix iOS Swift Package Manager integration: `Package.swift` declared `path: "Classes"`, which doesn't exist inside the package folder, causing
