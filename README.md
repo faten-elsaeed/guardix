@@ -26,7 +26,7 @@ Add to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  guardix: ^0.2.0
+  guardix: ^0.2.2
 ```
 
 ### Android setup
